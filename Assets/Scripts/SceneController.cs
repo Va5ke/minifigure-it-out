@@ -2,9 +2,8 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.Networking;
 
-// GameController: Manages core game setup and flow: creates and positions cards, shuffles them,
-// tracks revealed cards, resolves matches/mismatches, and controls turn progression
 public class SceneController : MonoBehaviour
 {
     [Header("Cards Layout")]
@@ -15,7 +14,6 @@ public class SceneController : MonoBehaviour
 
     [Header("Cards")]
     [SerializeField] private MainCard originalCard;
-    [SerializeField] private Sprite[] cardFaceImages;
     private MainCard _firstRevealedCard;
     private MainCard _secondRevealedCard;
 
@@ -27,71 +25,96 @@ public class SceneController : MonoBehaviour
     [SerializeField] private TextMesh scoreLabel;
     private int _score = 0;
 
-    // Returns true if the player is allowed to reveal another card.
-    // This is only possible when no second card is currently revealed (i.e., turn not yet completed).
-    public bool CanReveal
-    {
-        get { return _secondRevealedCard == null; }
-    }
+    [Header("Loading UI")]
+    [SerializeField] private GameObject loadingScreen;
+
+    private const int TotalUniqueCards = 4;
+    private const int MinImageId = 1;
+    private const int MaxImageId = 1126;
+    private const string ImageUrlTemplate = "https://img.bricklink.com/ItemImage/MN/0/sh{0:D4}.png";
+
+    private List<MainCard> _allCards = new List<MainCard>();
+
+    public bool CanReveal => _secondRevealedCard == null;
 
     private void Start()
     {
-        Debug.Assert(cardFaceImages.Length * 2 == gridRows * gridColumns,
-            "Card images count doesn't match grid size!");
-        
-        SetCardStartLayout();
+        // Hide the original card completely until the grid is ready
+        originalCard.SetVisible(false);
+
+        loadingScreen.SetActive(true);
+        StartCoroutine(LoadImagesAndSetup());
     }
 
-    private void SetCardStartLayout()
+    private IEnumerator LoadImagesAndSetup()
     {
-        List<CardData> deck = BuildDeck();
-        ShuffleDeck(deck);
-        PlaceCards(deck);
-    }
-
-    private List<CardData> BuildDeck()
-    {
-        // Step 1: Build a flat list of CardData pairs
+        List<int> chosenIds = PickRandomImageIds(TotalUniqueCards);
         List<CardData> deck = new List<CardData>();
 
-        for (int id = 0; id < cardFaceImages.Length; id++)
+        for (int i = 0; i < chosenIds.Count; i++)
         {
-            CardData cardData = new CardData { id = id, face = cardFaceImages[id] };
-            deck.Add(cardData);
-            deck.Add(cardData);
+            string url = string.Format(ImageUrlTemplate, chosenIds[i]);
+            using (UnityWebRequest request = UnityWebRequestTexture.GetTexture(url))
+            {
+                yield return request.SendWebRequest();
+
+                Texture2D texture;
+                if (request.result == UnityWebRequest.Result.Success)
+                {
+                    texture = DownloadHandlerTexture.GetContent(request);
+                }
+                else
+                {
+                    Debug.LogWarning($"Failed to load {url}: {request.error}. Using placeholder.");
+                    texture = MakePlaceholderTexture(i);
+                }
+
+                CardData cardData = new CardData { id = i, face = texture };
+                deck.Add(cardData);
+                deck.Add(cardData);
+            }
         }
 
-        return deck;
+        ShuffleDeck(deck);
+        PlaceCards(deck);
+
+        // All cards are placed — hide loading screen and reveal the grid
+        loadingScreen.SetActive(false);
+        foreach (MainCard card in _allCards)
+        {
+            card.SetVisible(true);
+        }
     }
 
-    // Fisher-Yates shuffle: iterate from the end, and for each position pick
-    // a random card from the undecided portion (0 to i) and swap it into place.
-    // The array is divided into two sides:
-    //   left  [0..i] -> undecided, we pick randomly from here
-    //   right [i+1..n] -> already decided, we don't touch this
-    // We stop at i=1 (not i=0) because a single remaining card has nowhere to swap to.
-    // More efficient than picking from the full array each time (naive approach),
-    // which can revisit already-decided positions and produce a biased shuffle.
+    private List<int> PickRandomImageIds(int count)
+    {
+        HashSet<int> chosen = new HashSet<int>();
+        while (chosen.Count < count)
+            chosen.Add(Random.Range(MinImageId, MaxImageId + 1));
+        return new List<int>(chosen);
+    }
+
+    private Texture2D MakePlaceholderTexture(int colorIndex)
+    {
+        Color[] colors = { Color.red, Color.green, Color.blue, Color.yellow };
+        Texture2D tex = new Texture2D(2, 2);
+        Color c = colors[colorIndex % colors.Length];
+        tex.SetPixels(new Color[] { c, c, c, c });
+        tex.Apply();
+        return tex;
+    }
+
     private static void ShuffleDeck(List<CardData> deck)
     {
-        // Step 2: Shuffle the list (Fisher-Yates)
         for (int i = deck.Count - 1; i > 0; i--)
         {
             int randomIndex = Random.Range(0, i + 1);
-
-            // Basic approach for swapping card positions
-            //CardData temp = deck[i];
-            //deck[i] = deck[randomIndex];
-            //deck[randomIndex] = temp;
-
-            // Alternative approach: tuple swap — a C# shorthand for swapping two values without a temporary variable
             (deck[i], deck[randomIndex]) = (deck[randomIndex], deck[i]);
         }
     }
 
     private void PlaceCards(List<CardData> deck)
     {
-        // Step 3: Place cards on the grid
         Vector3 startPos = originalCard.transform.position;
         int cardIndex = 0;
 
@@ -99,18 +122,17 @@ public class SceneController : MonoBehaviour
         {
             for (int row = 0; row < gridRows; row++)
             {
-                // Use the original card for the first instance; instantiate a clone for all subsequent cards
                 MainCard card = (cardIndex == 0)
                     ? originalCard
                     : Instantiate(originalCard);
 
                 card.SetUpCard(deck[cardIndex]);
 
-                // starting point plus how many steps taken multiplied by the step size
                 float x = startPos.x + col * offsetX;
                 float y = startPos.y + row * offsetY;
                 card.transform.position = new Vector3(x, y, startPos.z);
 
+                _allCards.Add(card);
                 cardIndex++;
             }
         }
@@ -138,13 +160,11 @@ public class SceneController : MonoBehaviour
         }
         else
         {
-            // On mismatch: wait for a short delay so player can see the cards, then hide both
             yield return new WaitForSeconds(mismatchRevealDurationInSeconds);
             _firstRevealedCard.Unreveal();
             _secondRevealedCard.Unreveal();
         }
 
-        // Reset selected cards to end the current turn and allow the next turn to start
         _firstRevealedCard = null;
         _secondRevealedCard = null;
     }

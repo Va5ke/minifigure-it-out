@@ -8,22 +8,25 @@ public class MainCard : MonoBehaviour
     [SerializeField] private GameObject cardBack;
     private SpriteRenderer _spriteRenderer;
     private int _id;
+    private bool _interactable = false;
 
-    public int Id
-    {
-        get { return _id; }
-    }
-
+    public int Id => _id;
 
     private void Awake()
     {
         _spriteRenderer = GetComponent<SpriteRenderer>();
     }
 
+    public void SetVisible(bool visible)
+    {
+        _spriteRenderer.enabled = visible;
+        cardBack.SetActive(visible);
+        _interactable = visible;
+    }
+
     public void OnMouseDown()
     {
-        // If the card is face-down and revealing is allowed,
-        // flip it face-up and notify the scene controller which card was revealed
+        if (!_interactable) return;
         if (cardBack.activeSelf && sceneController.CanReveal)
         {
             cardBack.SetActive(false);
@@ -36,10 +39,36 @@ public class MainCard : MonoBehaviour
         cardBack.SetActive(true);
     }
 
-    // Initializes the card with provided data by setting its ID and face sprite
     public void SetUpCard(CardData cardData)
     {
         _id = cardData.id;
-        _spriteRenderer.sprite = cardData.face;
+
+        Texture2D tex = cardData.face;
+
+        float scale = 780f / tex.height;
+        int scaledWidth = Mathf.RoundToInt(tex.width * scale);
+        int scaledHeight = 780;
+
+        RenderTexture rt = RenderTexture.GetTemporary(scaledWidth, scaledHeight, 0);
+        Graphics.Blit(tex, rt);
+        RenderTexture.active = rt;
+
+        Texture2D scaled = new Texture2D(scaledWidth, scaledHeight);
+        scaled.ReadPixels(new Rect(0, 0, scaledWidth, scaledHeight), 0, 0);
+        scaled.Apply();
+
+        RenderTexture.active = null;
+        RenderTexture.ReleaseTemporary(rt);
+
+        int cropX = Mathf.Max(0, (scaledWidth - 520) / 2);
+        int cropWidth = Mathf.Min(520, scaledWidth);
+
+        Sprite sprite = Sprite.Create(
+            scaled,
+            new Rect(cropX, 0, cropWidth, scaledHeight),
+            new Vector2(0.5f, 0.5f)
+        );
+
+        _spriteRenderer.sprite = sprite;
     }
 }

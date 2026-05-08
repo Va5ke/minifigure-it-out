@@ -5,5 +5,5 @@ using UnityEngine;
 public struct CardData
 {
     public int id;
-    public Sprite face;
+    public Texture2D face;
 }
