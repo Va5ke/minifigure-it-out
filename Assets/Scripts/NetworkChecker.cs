@@ -15,6 +15,8 @@ public class NetworkChecker : MonoBehaviour
     [SerializeField] private SceneController sceneController;
     private bool _gameStarted = false;
 
+    [SerializeField] private AudioSource backgroundMusic;
+
     private IEnumerator CheckConnectivityLoop()
     {
         while (true)
@@ -25,7 +27,8 @@ public class NetworkChecker : MonoBehaviour
             if (hasInternet && !_gameStarted)
             {
                 _gameStarted = true;
-                sceneController.StartGame(); // see below
+                backgroundMusic.Play();
+                sceneController.StartGame();
             }
 
             yield return new WaitForSeconds(hasInternet ? 5f : 1f);

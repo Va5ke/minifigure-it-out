@@ -20,6 +20,9 @@ public class SceneController : MonoBehaviour
     [Header("Gameplay Settings")]
     [Range(0.5f, 5f)]
     [SerializeField] private float mismatchRevealDurationInSeconds = 1f;
+    
+    [Header("Audio")]
+    [SerializeField] private AudioSource matchSound;
 
     [Header("Score")]
     [SerializeField] private TextMesh scoreLabel;
@@ -72,7 +75,7 @@ public class SceneController : MonoBehaviour
 
     private void Start()
     {
-
+        matchSound.volume = 0.3f;
     }
 
     public void StartGame()
@@ -301,6 +304,7 @@ public class SceneController : MonoBehaviour
             scoreLabel.text = "Score: " + _score;
             _combo++;
             if (_combo > 1) comboLabel.text = "Combo! x" + _combo;
+            matchSound.Play();
         }
         else
         {
