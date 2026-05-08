@@ -1,10 +1,7 @@
 using UnityEngine;
 
-public class UIRestartButton : MonoBehaviour
+public class UIQuitButton : MonoBehaviour
 {
-    [Header("Restart")]
-    [SerializeField] private GameObject targetObject;
-    [SerializeField] private string restartMethodName;
 
     [Header("Mouse Feedback")]
     private Color defaultColor;
@@ -17,7 +14,7 @@ public class UIRestartButton : MonoBehaviour
 
     private void Awake()
     {
-        
+
     }
 
     private void Start()
@@ -63,11 +60,6 @@ public class UIRestartButton : MonoBehaviour
 
     private void OnMouseUp()
     {
-        transform.localScale = defaultButtonScale;
-
-        if (targetObject != null)
-        {
-            targetObject.SendMessage(restartMethodName);
-        }
+        Application.Quit();
     }
 }

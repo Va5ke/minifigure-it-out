@@ -1,10 +1,14 @@
 using UnityEngine;
 
-public class UIRestartButton : MonoBehaviour
+public class UIPauseButton : MonoBehaviour
 {
-    [Header("Restart")]
+    [Header("Pause")]
     [SerializeField] private GameObject targetObject;
-    [SerializeField] private string restartMethodName;
+    [SerializeField] private string pauseMethodName;
+
+    [Header("Sprites")]
+    [SerializeField] private Sprite pauseSprite;
+    [SerializeField] private Sprite resumeSprite;
 
     [Header("Mouse Feedback")]
     private Color defaultColor;
@@ -13,47 +17,29 @@ public class UIRestartButton : MonoBehaviour
     [SerializeField] private Vector3 buttonPressScale = new Vector3(0.2f, 0.2f, 1.0f);
 
     private SpriteRenderer _spriteRenderer;
-
-
-    private void Awake()
-    {
-        
-    }
+    private bool _isPaused = false;
 
     private void Start()
     {
-        SpriteRenderer _spriteRenderer = GetComponent<SpriteRenderer>();
-
+        _spriteRenderer = GetComponent<SpriteRenderer>();
         defaultColor = _spriteRenderer.color;
         defaultButtonScale = transform.localScale;
-    }
 
-    //private void OnMouseOver()
-    //{ 
-    //    if (_spriteRenderer != null)
-    //    {
-    //        _spriteRenderer.color = highlightColor;
-    //    }
-    //}
+        // Make sure the pause sprite is the starting sprite
+        if (pauseSprite != null)
+            _spriteRenderer.sprite = pauseSprite;
+    }
 
     private void OnMouseEnter()
     {
-        _spriteRenderer = GetComponent<SpriteRenderer>();
-
         if (_spriteRenderer != null)
-        {
             _spriteRenderer.color = highlightColor;
-        }
     }
 
     private void OnMouseExit()
     {
-        _spriteRenderer = GetComponent<SpriteRenderer>();
-
         if (_spriteRenderer != null)
-        {
-            _spriteRenderer.color = defaultColor; // _spriteRenderer.color = Color.white;
-        }
+            _spriteRenderer.color = defaultColor;
     }
 
     private void OnMouseDown()
@@ -66,8 +52,9 @@ public class UIRestartButton : MonoBehaviour
         transform.localScale = defaultButtonScale;
 
         if (targetObject != null)
-        {
-            targetObject.SendMessage(restartMethodName);
-        }
+            targetObject.SendMessage(pauseMethodName);
+
+        _isPaused = !_isPaused;
+        _spriteRenderer.sprite = _isPaused ? resumeSprite : pauseSprite;
     }
 }

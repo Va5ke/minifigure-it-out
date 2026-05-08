@@ -26,7 +26,7 @@ public class MainCard : MonoBehaviour
 
     public void OnMouseDown()
     {
-        if (!_interactable) return;
+        if (!_interactable || sceneController.IsPaused) return;
         if (cardBack.activeSelf && sceneController.CanReveal)
         {
             cardBack.SetActive(false);

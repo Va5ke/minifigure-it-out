@@ -24,36 +24,185 @@ public class SceneController : MonoBehaviour
     [Header("Score")]
     [SerializeField] private TextMesh scoreLabel;
     private int _score = 0;
+    [SerializeField] private TextMesh attemptsLabel;
+    private int _attempts = 0;
+    [SerializeField] private TextMesh comboLabel;
+    private int _combo = 0;
+
+    [SerializeField] private TextMesh timerText;
+
+    private float _elapsedSeconds = 0f;
+    private bool _paused = false;
+    private bool _timerStarted = false;
+
+    public bool IsPaused => _paused;
+
+    public void Pause()
+    {
+        _paused = !_paused;
+    }
+
+    private void Update()
+    {
+        if (_paused || _score == 4 || !_timerStarted) return;
+        _elapsedSeconds += Time.deltaTime;
+        UpdateTimerLabel();
+    }
+
+    private void UpdateTimerLabel()
+    {
+        int totalSeconds = Mathf.FloorToInt(_elapsedSeconds);
+        int hours = totalSeconds / 3600;
+        int minutes = (totalSeconds % 3600) / 60;
+        int seconds = totalSeconds % 60;
+        int centiseconds = Mathf.FloorToInt((_elapsedSeconds - Mathf.Floor(_elapsedSeconds)) * 100);
+
+        timerText.text = string.Format("{0:D2}:{1:D2}:{2:D2}.{3:D2}", hours, minutes, seconds, centiseconds);
+    }
 
     [Header("Loading UI")]
     [SerializeField] private GameObject loadingScreen;
 
     private const int TotalUniqueCards = 4;
-    private const int MinImageId = 1;
-    private const int MaxImageId = 1126;
-    private const string ImageUrlTemplate = "https://img.bricklink.com/ItemImage/MN/0/sh{0:D4}.png";
 
     private List<MainCard> _allCards = new List<MainCard>();
 
     public bool CanReveal => _secondRevealedCard == null;
+    private List<string> _imagePool;
 
     private void Start()
     {
-        // Hide the original card completely until the grid is ready
-        originalCard.SetVisible(false);
 
+    }
+
+    public void StartGame()
+    {
+        _imagePool = BuildImagePool();
+        originalCard.SetVisible(false);
         loadingScreen.SetActive(true);
         StartCoroutine(LoadImagesAndSetup());
     }
 
+    private static List<string> BuildImagePool()
+    {
+        List<string> pool = new List<string>();
+
+        // sh: 0001 to 1126 (4 digits)
+        for (int i = 1; i <= 1126; i++)
+            pool.Add($"sh{i:D4}");
+
+        // dis: 001 to 192
+        for (int i = 1; i <= 192; i++)
+            pool.Add($"dis{i:D3}");
+
+        // sim: 001 to 048
+        for (int i = 1; i <= 48; i++)
+            pool.Add($"sim{i:D3}");
+
+        // hp: 134 to 616
+        for (int i = 134; i <= 616; i++)
+            pool.Add($"hp{i:D3}");
+
+        // colhp: 01 to 39 (2 digits)
+        for (int i = 1; i <= 39; i++)
+            pool.Add($"colhp{i:D2}");
+
+        // ftv: 001 to 007
+        for (int i = 1; i <= 7; i++)
+            pool.Add($"ftv{i:D3}");
+
+        // iaj: 046 to 056
+        for (int i = 46; i <= 56; i++)
+            pool.Add($"iaj{i:D3}");
+
+        // op: 001 to 025
+        for (int i = 1; i <= 25; i++)
+            pool.Add($"op{i:D3}");
+
+        // ow: 001 to 017
+        for (int i = 1; i <= 17; i++)
+            pool.Add($"ow{i:D3}");
+
+        // son: 001 to 033
+        for (int i = 1; i <= 33; i++)
+            pool.Add($"son{i:D3}");
+
+        // bob: 001 to 038, with bob017 -> bob017b
+        for (int i = 1; i <= 38; i++)
+        {
+            if (i == 17)
+                pool.Add("bob017b");
+            else
+                pool.Add($"bob{i:D3}");
+        }
+
+        // tnt: 001 to 053
+        for (int i = 1; i <= 53; i++)
+            pool.Add($"tnt{i:D3}");
+
+        // lor: 001 to 111
+        for (int i = 1; i <= 111; i++)
+            pool.Add($"lor{i:D3}");
+
+        // scd: 001 to 011
+        for (int i = 1; i <= 11; i++)
+            pool.Add($"scd{i:D3}");
+
+        // collt: 01 to 12 (2 digits)
+        for (int i = 1; i <= 12; i++)
+            pool.Add($"collt{i:D2}");
+
+        // colsh: 01 to 16 (2 digits)
+        for (int i = 1; i <= 16; i++)
+            pool.Add($"colsh{i:D2}");
+
+        // colmar: 01 to 24 (2 digits)
+        for (int i = 1; i <= 24; i++)
+            pool.Add($"colmar{i:D2}");
+
+        // coltm: 01 to 12 (2 digits)
+        for (int i = 1; i <= 12; i++)
+            pool.Add($"coltm{i:D2}");
+
+        // idea
+        HashSet<int> ideaIds = new HashSet<int>();
+        ideaIds.Add(49); ideaIds.Add(50);
+        for (int i = 86; i <= 90; i++) ideaIds.Add(i);
+        ideaIds.Add(192); ideaIds.Add(193);
+        for (int i = 199; i <= 202; i++) ideaIds.Add(i);
+        for (int i = 13; i <= 19; i++) ideaIds.Add(i);
+        for (int i = 56; i <= 62; i++) ideaIds.Add(i);
+        for (int i = 92; i <= 96; i++) ideaIds.Add(i);
+        for (int i = 107; i <= 121; i++) ideaIds.Add(i);
+        ideaIds.Add(44); /* skip 45 */ ideaIds.Add(46); ideaIds.Add(47); ideaIds.Add(48);
+        for (int i = 73; i <= 78; i++) ideaIds.Add(i);
+
+        foreach (int id in ideaIds)
+            pool.Add($"idea{id:D3}");
+
+        return pool;
+    }
+
+    private List<string> PickRandomImageKeys(int count)
+    {
+        HashSet<int> chosenIndices = new HashSet<int>();
+        while (chosenIndices.Count < count)
+            chosenIndices.Add(Random.Range(0, _imagePool.Count));
+
+        List<string> result = new List<string>();
+        foreach (int idx in chosenIndices)
+            result.Add(_imagePool[idx]);
+        return result;
+    }
+
     private IEnumerator LoadImagesAndSetup()
     {
-        List<int> chosenIds = PickRandomImageIds(TotalUniqueCards);
+        List<string> chosenKeys = PickRandomImageKeys(TotalUniqueCards);
         List<CardData> deck = new List<CardData>();
 
-        for (int i = 0; i < chosenIds.Count; i++)
+        for (int i = 0; i < chosenKeys.Count; i++)
         {
-            string url = string.Format(ImageUrlTemplate, chosenIds[i]);
+            string url = $"https://img.bricklink.com/ItemImage/MN/0/{chosenKeys[i]}.png";
             using (UnityWebRequest request = UnityWebRequestTexture.GetTexture(url))
             {
                 yield return request.SendWebRequest();
@@ -78,20 +227,11 @@ public class SceneController : MonoBehaviour
         ShuffleDeck(deck);
         PlaceCards(deck);
 
-        // All cards are placed — hide loading screen and reveal the grid
         loadingScreen.SetActive(false);
         foreach (MainCard card in _allCards)
-        {
             card.SetVisible(true);
-        }
-    }
 
-    private List<int> PickRandomImageIds(int count)
-    {
-        HashSet<int> chosen = new HashSet<int>();
-        while (chosen.Count < count)
-            chosen.Add(Random.Range(MinImageId, MaxImageId + 1));
-        return new List<int>(chosen);
+        _timerStarted = true;
     }
 
     private Texture2D MakePlaceholderTexture(int colorIndex)
@@ -147,6 +287,8 @@ public class SceneController : MonoBehaviour
         else
         {
             _secondRevealedCard = card;
+            _attempts++;
+            attemptsLabel.text = "Attempts: " + _attempts;
             StartCoroutine(CheckCardMatchCoroutine());
         }
     }
@@ -157,9 +299,13 @@ public class SceneController : MonoBehaviour
         {
             _score++;
             scoreLabel.text = "Score: " + _score;
+            _combo++;
+            if (_combo > 1) comboLabel.text = "Combo! x" + _combo;
         }
         else
         {
+            _combo = 0;
+            comboLabel.text = "";
             yield return new WaitForSeconds(mismatchRevealDurationInSeconds);
             _firstRevealedCard.Unreveal();
             _secondRevealedCard.Unreveal();
@@ -174,3 +320,4 @@ public class SceneController : MonoBehaviour
         SceneManager.LoadScene(SceneManager.GetActiveScene().name);
     }
 }
+
